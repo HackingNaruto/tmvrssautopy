@@ -6,32 +6,30 @@ from flask import Flask
 # --- CONFIGURATION ---
 API_ID = int(os.environ.get("API_ID"))
 API_HASH = os.environ.get("API_HASH")
-SESSION_STRING = os.environ.get("SESSION_STRING")
+SESSION_STRING = os.environ.get("SESSION_STRING") # Userbot String
 
-SOURCE_CHAT_VAR = os.environ.get("SOURCE_CHAT")
-DEST_CHAT_VAR = os.environ.get("DEST_CHAT")
-
+# ID Handling
 def get_id(val):
     try:
         return int(val)
     except:
         return val
 
-SOURCE_CHAT = get_id(SOURCE_CHAT_VAR)
-DEST_CHAT = get_id(DEST_CHAT_VAR)
+SOURCE_CHAT = get_id(os.environ.get("SOURCE_CHAT"))
+DEST_CHAT = get_id(os.environ.get("DEST_CHAT"))
 
 # --- WEB SERVER ---
 app_web = Flask(__name__)
 
 @app_web.route('/')
 def home():
-    return "Bot is Running Securely!"
+    return "Userbot is Running Successfully!"
 
 def run_web():
     port = int(os.environ.get("PORT", 8080))
     app_web.run(host='0.0.0.0', port=port)
 
-# --- BOT CLIENT ---
+# --- USERBOT CLIENT ---
 app = Client(
     "my_userbot",
     api_id=API_ID,
@@ -39,32 +37,59 @@ app = Client(
     session_string=SESSION_STRING
 )
 
-print(f"🤖 Bot Started! Monitoring: {SOURCE_CHAT}")
+print(f"🤖 Userbot Started! Monitoring: {SOURCE_CHAT}")
 
-# --- MAIN LOGIC ---
+# --- MAIN LOGIC (FILE ID METHOD) ---
 @app.on_message(filters.chat(SOURCE_CHAT))
 async def forward_handler(client, message):
     try:
-        # Check for Media
-        if message.video or message.audio or message.document or message.photo:
-            print(f"📩 New File Found! ID: {message.id}")
+        sent_msg = None
+        caption = message.caption or "" # Caption irundha eduthukum
 
-            # -------------------------------------------------------
-            # SOLUTION: 'copy' method use panrom. 
-            # Idhu original sender ID-a thedaadhu. Direct ah send pannum.
-            # -------------------------------------------------------
-            print(f"🚀 Copying to Destination ({DEST_CHAT})...")
-            
-            # MUKKIYAM: forward() ku badhila copy() use panrom
-            copied_msg = await message.copy(DEST_CHAT)
+        # 1. DOCUMENT (Files)
+        if message.document:
+            print(f"📄 Sending Document: {message.document.file_name}")
+            sent_msg = await client.send_document(
+                chat_id=DEST_CHAT,
+                document=message.document.file_id,
+                caption=caption
+            )
 
-            # Reply /ql2 to the copied message
+        # 2. VIDEO
+        elif message.video:
+            print(f"🎥 Sending Video...")
+            sent_msg = await client.send_video(
+                chat_id=DEST_CHAT,
+                video=message.video.file_id,
+                caption=caption
+            )
+
+        # 3. AUDIO
+        elif message.audio:
+            print(f"🎵 Sending Audio...")
+            sent_msg = await client.send_audio(
+                chat_id=DEST_CHAT,
+                audio=message.audio.file_id,
+                caption=caption
+            )
+
+        # 4. PHOTO
+        elif message.photo:
+            print(f"🖼️ Sending Photo...")
+            sent_msg = await client.send_photo(
+                chat_id=DEST_CHAT,
+                photo=message.photo.file_id,
+                caption=caption
+            )
+
+        # Reply /ql2 if file was sent
+        if sent_msg:
             await client.send_message(
                 chat_id=DEST_CHAT,
                 text="/ql2",
-                reply_to_message_id=copied_msg.id
+                reply_to_message_id=sent_msg.id
             )
-            print("✅ Success! Copied & Replied /ql2")
+            print("✅ Sent as NEW message & Replied /ql2")
 
     except Exception as e:
         print(f"❌ Error: {e}")
