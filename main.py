@@ -11,59 +11,63 @@ SESSION_STRING = os.environ.get("SESSION_STRING")
 SOURCE_CHAT_VAR = os.environ.get("SOURCE_CHAT")
 DEST_CHAT_VAR = os.environ.get("DEST_CHAT")
 
+def get_id(val):
+    try:
+        return int(val)
+    except:
+        return val
+
+SOURCE_CHAT = get_id(SOURCE_CHAT_VAR)
+DEST_CHAT = get_id(DEST_CHAT_VAR)
+
 # --- WEB SERVER ---
 app_web = Flask(__name__)
 
 @app_web.route('/')
 def home():
-    return "Bot is Running!"
+    return "Bot is Running Securely!"
 
 def run_web():
     port = int(os.environ.get("PORT", 8080))
     app_web.run(host='0.0.0.0', port=port)
 
-# --- DEBUG & SETUP ---
-print("------------------------------------------------")
-print(f"🧐 DEBUG CHECK (Render என்ன ID-ஐ பார்க்கிறது?)")
-print(f"👉 Source ID from Env: {SOURCE_CHAT_VAR}")
-print(f"👉 Dest Group ID from Env: {DEST_CHAT_VAR}")
-print("------------------------------------------------")
+# --- BOT CLIENT ---
+app = Client(
+    "my_userbot",
+    api_id=API_ID,
+    api_hash=API_HASH,
+    session_string=SESSION_STRING
+)
 
-# Convert to Integer
-try:
-    SOURCE_CHAT = int(SOURCE_CHAT_VAR)
-    DEST_CHAT = int(DEST_CHAT_VAR)
-except ValueError:
-    print("❌ Error: ID-கள் நம்பராக இல்லை! Environment Variables-ஐ சரிபார்க்கவும்.")
-    exit()
-
-app = Client("my_bot", api_id=API_ID, api_hash=API_HASH, session_string=SESSION_STRING)
+print(f"🤖 Bot Started! Monitoring: {SOURCE_CHAT}")
 
 # --- MAIN LOGIC ---
 @app.on_message(filters.chat(SOURCE_CHAT))
 async def forward_handler(client, message):
     try:
-        print(f"📩 Message Received in Source Channel! ID: {message.id}")
-
+        # Check for Media
         if message.video or message.audio or message.document or message.photo:
-            # 1. Forward Message
-            print(f"🚀 Forwarding to {DEST_CHAT}...")
-            # 'as_copy=True' என்பது முக்கியம்! இது Original Sender ID-ஐ மறைத்துவிடும்.
-            # இதுதான் அந்த '-1003621406389' error வராமல் தடுக்கும்.
-            forwarded = await message.copy(DEST_CHAT)
+            print(f"📩 New File Found! ID: {message.id}")
 
-            # 2. Reply /ql2
+            # -------------------------------------------------------
+            # SOLUTION: 'copy' method use panrom. 
+            # Idhu original sender ID-a thedaadhu. Direct ah send pannum.
+            # -------------------------------------------------------
+            print(f"🚀 Copying to Destination ({DEST_CHAT})...")
+            
+            # MUKKIYAM: forward() ku badhila copy() use panrom
+            copied_msg = await message.copy(DEST_CHAT)
+
+            # Reply /ql2 to the copied message
             await client.send_message(
                 chat_id=DEST_CHAT,
                 text="/ql2",
-                reply_to_message_id=forwarded.id
+                reply_to_message_id=copied_msg.id
             )
-            print("✅ Success! Forwarded & Replied.")
-        else:
-            print("⚠️ Message is NOT a file.")
+            print("✅ Success! Copied & Replied /ql2")
 
     except Exception as e:
-        print(f"❌ Error during Forwarding: {e}")
+        print(f"❌ Error: {e}")
 
 # --- START ---
 if __name__ == "__main__":
